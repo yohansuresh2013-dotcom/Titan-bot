@@ -1,4 +1,4 @@
-ask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 import sqlite3
 import os
@@ -33,7 +33,7 @@ def init_db():
     
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
-        tokens INTEGER DEFAULT 20,
+        tokens INTEGER DEFAULT 5,
         analyses INTEGER DEFAULT 0,
         online INTEGER DEFAULT 0,
         kicked INTEGER DEFAULT 0,
@@ -42,14 +42,6 @@ def init_db():
         joined_at TEXT,
         unlimited_until TEXT,
         total_purchased INTEGER DEFAULT 0
-    )''')
-    
-    c.execute('''CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT,
-        text TEXT,
-        time TEXT,
-        type TEXT DEFAULT 'message'
     )''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS signals (
@@ -166,8 +158,8 @@ def api_rejoin():
     if not user:
         return jsonify({'success': False})
     if code == 'ADMIN-OVERRIDE' or code == user['rejoin_code']:
-        update_user(user_id, kicked=0, tokens=max(user['tokens'], 3), online=1)
-        return jsonify({'success': True, 'tokens': max(user['tokens'], 3)})
+        update_user(user_id, kicked=0, tokens=max(user['tokens'], 5), online=1)
+        return jsonify({'success': True, 'tokens': max(user['tokens'], 5)})
     return jsonify({'success': False})
 
 @app.route('/api/analyze', methods=['POST'])
@@ -179,14 +171,15 @@ def api_analyze():
         return jsonify({'success': False, 'message': 'User not found'})
     
     # Check unlimited
+    is_unlimited = False
     if user['unlimited_until']:
         unlimited_date = datetime.fromisoformat(user['unlimited_until'])
         if datetime.now() < unlimited_date:
-            pass  # Free analysis
+            is_unlimited = True
         else:
             update_user(user_id, unlimited_until=None)
     
-    if not user['unlimited_until'] or datetime.now() >= datetime.fromisoformat(user['unlimited_until']):
+    if not is_unlimited:
         if user['tokens'] <= 0:
             return jsonify({'success': False, 'message': 'No tokens'})
         update_user(user_id, tokens=user['tokens'] - 1)
@@ -292,7 +285,6 @@ def api_approve_purchase():
         conn.close()
         return jsonify({'success': False})
     
-    # Add tokens to user
     user = get_user(purchase['user_id'])
     if purchase['package'] == 'unlimited':
         unlimited_until = (datetime.now() + timedelta(days=30)).isoformat()
@@ -302,7 +294,6 @@ def api_approve_purchase():
     
     update_user(purchase['user_id'], total_purchased=user['total_purchased'] + purchase['tokens'])
     
-    # Move to revenue
     conn.execute('''INSERT INTO revenue (user_id, package, amount, tokens, created_at)
                     VALUES (?, ?, ?, ?, ?)''',
                  (purchase['user_id'], purchase['package'], purchase['amount'], purchase['tokens'], datetime.now().isoformat()))
@@ -348,4 +339,4 @@ def api_user_info():
     return jsonify({'success': False})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)from fl
+    app.run(host='0.0.0.0', port=5000, debug=True)
