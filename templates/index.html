@@ -38,7 +38,6 @@
             position: relative;
         }
 
-        /* Gold particles */
         .gold-particles {
             position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
@@ -60,7 +59,6 @@
             100% { transform: translateY(-100px) scale(1.5); opacity: 0; }
         }
 
-        /* Grid */
         .luxury-grid {
             position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
@@ -81,7 +79,6 @@
             border-right: 1px solid #1a1a1a;
         }
 
-        /* Header */
         .header {
             padding: 16px 18px;
             display: flex; align-items: center; justify-content: space-between;
@@ -134,7 +131,6 @@
         .main-content { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
         .hidden { display: none !important; }
 
-        /* Glass card */
         .gold-card {
             background: #0a0a0a;
             border: 1px solid #1a1a1a;
@@ -144,7 +140,6 @@
         }
         .gold-card:hover { border-color: var(--border-gold); box-shadow: 0 0 30px rgba(212,168,67,0.1); }
 
-        /* Chart */
         .chart-upload-zone {
             padding: 30px 20px; text-align: center; cursor: pointer;
             min-height: 190px; display: flex; flex-direction: column;
@@ -155,7 +150,6 @@
         .upload-icon { font-size: 2.5rem; opacity: 0.4; }
         .upload-text { font-size: 0.7rem; color: var(--gray); letter-spacing: 2px; }
 
-        /* Buttons */
         .btn-gold {
             background: linear-gradient(135deg, #1a1200, #0d0900);
             border: 1px solid var(--border-gold);
@@ -174,7 +168,6 @@
         }
         .btn-gold:disabled { opacity: 0.3; pointer-events: none; }
 
-        /* Signal Rules */
         .rules-box {
             padding: 16px; text-align: center;
             border: 1px solid #1a1a1a;
@@ -192,7 +185,6 @@
         .rule-pass { color: var(--green); font-weight: 700; }
         .rule-fail { color: var(--red); font-weight: 700; }
 
-        /* Signal Output */
         .signal-output {
             display: none; padding: 20px; text-align: center;
             border: 2px solid var(--border-gold);
@@ -213,14 +205,13 @@
         .signal-direction.sell { color: var(--red); text-shadow: 0 0 30px rgba(255,23,68,0.5); }
         .signal-direction.unstable { color: var(--yellow); text-shadow: 0 0 30px rgba(255,214,0,0.5); }
         .signal-info-row {
-            display: flex; justify-content: space-around; margin-top: 14px;
+            display: flex; justify-content: center; margin-top: 14px;
             font-size: 0.7rem; color: var(--gray-light);
         }
         .signal-info-row strong {
-            color: var(--gold-light); font-size: 1rem; display: block; margin-top: 4px;
+            color: var(--gold-light); font-size: 1.3rem; display: block; margin-top: 4px;
         }
 
-        /* Loading - Gold Candles */
         .loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.97);
@@ -267,7 +258,6 @@
             text-shadow: 0 0 30px var(--gold-glow); z-index: 1; margin-top: 8px;
         }
 
-        /* Login */
         .login-screen {
             flex: 1; display: flex; flex-direction: column;
             align-items: center; justify-content: center; gap: 18px; padding: 40px 30px;
@@ -303,7 +293,6 @@
         .btn-login:hover { box-shadow: 0 0 35px var(--gold-glow); }
         .error-msg { color: var(--red); font-size: 0.65rem; display: none; }
 
-        /* Package */
         .package-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center;
@@ -330,7 +319,6 @@
             color: var(--gray); border-radius: 10px; cursor: pointer; font-weight: 700;
         }
 
-        /* Admin */
         .admin-panel { padding: 10px 0; display: none; }
         .admin-panel.show { display: block; }
         .admin-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -352,6 +340,17 @@
         }
         .admin-btn-sm.green-btn { border: 1px solid var(--green); color: var(--green); }
         .admin-btn-sm.red-btn { border: 1px solid var(--red); color: var(--red); }
+        .admin-btn-sm.gold-btn { border: 1px solid var(--gold); color: var(--gold); }
+
+        .key-display {
+            background: #0a0a0a; border: 1px solid var(--border-gold);
+            border-radius: 12px; padding: 14px; text-align: center;
+            margin: 8px 0; word-break: break-all;
+        }
+        .key-text {
+            font-size: 0.8rem; color: var(--gold-light); font-weight: 700;
+            letter-spacing: 2px; font-family: monospace;
+        }
     </style>
 </head>
 <body>
@@ -359,7 +358,6 @@
     <div class="gold-particles" id="goldParticles"></div>
     <div class="luxury-grid"></div>
 
-    <!-- Loading -->
     <div class="loading-overlay hidden" id="loadingOverlay">
         <div style="position:relative;display:flex;align-items:center;justify-content:center;">
             <div class="loading-ring"></div>
@@ -373,7 +371,6 @@
         <div class="loading-count" id="loadingCount">5</div>
     </div>
 
-    <!-- Package -->
     <div class="package-overlay hidden" id="packageOverlay">
         <div class="package-popup">
             <h3>⬡ BUY TOKENS ⬡</h3>
@@ -385,7 +382,6 @@
         </div>
     </div>
 
-    <!-- App -->
     <div class="app-container">
         <div class="header" id="headerBar">
             <div class="logo">
@@ -402,10 +398,9 @@
         <div class="login-screen" id="loginScreen">
             <div class="login-logo">👑</div>
             <div class="login-title">TITAN ANALYZER</div>
-            <div style="color:#666;font-size:0.65rem;letter-spacing:3px;">ENTER CREDENTIALS</div>
-            <input type="text" class="input-pass" id="usernameInput" placeholder="USERNAME" autocomplete="off">
-            <input type="password" class="input-pass" id="passInput" placeholder="••••••••" autocomplete="off">
-            <div class="error-msg" id="loginError">INVALID</div>
+            <div style="color:#666;font-size:0.65rem;letter-spacing:3px;">ENTER ACCESS KEY</div>
+            <input type="text" class="input-pass" id="keyInput" placeholder="TITAN-XXXXXXXX" autocomplete="off" style="text-transform:uppercase;">
+            <div class="error-msg" id="loginError">INVALID KEY</div>
             <button class="btn-login" id="loginBtn">INITIALIZE</button>
         </div>
 
@@ -418,8 +413,7 @@
 
             <button class="btn-gold" id="analyzeBtn" onclick="analyzeMarket()">⬡ ANALYZE MARKET</button>
 
-            <!-- Signal Rules (below button) -->
-            <div class="gold-card rules-box" id="rulesBox">
+            <div class="gold-card rules-box">
                 <div class="rules-title">𝙎𝙄𝙂𝙉𝘼𝙇 𝙍𝙐𝙇𝙀𝙎 (𝙈𝙐𝙎𝙏 𝙁𝙊𝙇𝙇𝙊𝙒)</div>
                 <div class="rule-row"><span>⭐ 𝘽𝙄𝙂 𝙒𝙀𝙀𝙆</span><span class="rule-fail">❌</span></div>
                 <div class="rule-row"><span>⭐ 𝘽𝙄𝙂 𝘽𝙊𝘿𝙔</span><span class="rule-fail">❌</span></div>
@@ -428,17 +422,14 @@
                 <div class="rule-row"><span>⭐ 𝙐𝙎𝙀 1 𝙎𝙏𝙀𝙋 𝙈𝙏𝙂</span><span class="rule-pass">✅</span></div>
             </div>
 
-            <!-- Signal Output -->
             <div class="gold-card signal-output" id="signalOutput">
                 <div class="signal-label">>> SIGNAL OUTPUT <<</div>
                 <div class="signal-direction" id="signalDir">--</div>
                 <div class="signal-info-row">
-                    <div>ENTRY<br><strong id="signalEntry">--</strong></div>
-                    <div>EXIT<br><strong id="signalExit">--</strong></div>
+                    <div>TRADE TIME<br><strong id="signalEntry">--</strong></div>
                 </div>
             </div>
 
-            <!-- Admin -->
             <div class="admin-panel" id="adminPanel">
                 <div class="admin-header-row"><span class="admin-title-text">👑 ADMIN</span><span class="admin-close-btn" onclick="closeAdmin()">✕</span></div>
                 <div class="stat-cards">
@@ -446,18 +437,25 @@
                     <div class="stat-card"><div class="stat-val" id="totalMembers">0</div><div class="stat-lbl">MEMBERS</div></div>
                     <div class="stat-card"><div class="stat-val" id="totalRevenue">0₹</div><div class="stat-lbl">REVENUE</div></div>
                 </div>
+                <button class="btn-gold" onclick="generateKey()" style="margin-bottom:10px;">🔑 GENERATE NEW KEY</button>
+                <div id="generatedKey" class="key-display hidden">
+                    <div style="font-size:0.6rem;color:var(--gray);">NEW ACCESS KEY:</div>
+                    <div class="key-text" id="newKeyText"></div>
+                    <button class="admin-btn-sm gold-btn" onclick="copyKey()" style="margin-top:8px;">📋 COPY</button>
+                </div>
                 <div id="pendingPurchases"></div>
-                <div id="memberList" style="max-height:200px;overflow-y:auto;"></div>
+                <div style="font-weight:700;font-size:0.6rem;letter-spacing:2px;color:var(--gold);margin:8px 0;">🔑 ACTIVE KEYS</div>
+                <div id="keysList" style="max-height:200px;overflow-y:auto;"></div>
                 <div class="admin-actions-row" id="adminActions" style="display:none;">
                     <button class="admin-btn-sm green-btn" onclick="adminAddTokens()">+ TOKENS</button>
                     <button class="admin-btn-sm red-btn" onclick="adminKickMember()">KICK</button>
+                    <button class="admin-btn-sm gold-btn" onclick="adminDeleteKey()">🗑 KEY</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Gold particles
         function createParticles() {
             const c = document.getElementById('goldParticles');
             for (let i = 0; i < 40; i++) {
@@ -471,7 +469,7 @@
         }
         createParticles();
 
-        let currentUser = null, selectedMember = null, imageUploaded = false, signalTimeout = null;
+        let currentUser = null, selectedMember = null, imageUploaded = false, signalTimeout = null, generatedKeyValue = '';
 
         async function apiCall(url, method='GET', body=null) {
             const opts = { method, headers: {'Content-Type': 'application/json'} };
@@ -481,11 +479,9 @@
         }
 
         async function handleLogin() {
-            const username = document.getElementById('usernameInput').value.trim();
-            const pass = document.getElementById('passInput').value.trim();
-            if (!username) return alert('Enter username!');
-            if (!pass) return;
-            const result = await apiCall('/api/login', 'POST', { password: pass, username });
+            const key = document.getElementById('keyInput').value.trim().toUpperCase();
+            if (!key) return alert('Enter access key!');
+            const result = await apiCall('/api/login', 'POST', { key });
             if (result.success) {
                 currentUser = { id: result.user_id, tokens: result.tokens, is_admin: result.is_admin };
                 document.getElementById('loginScreen').classList.add('hidden');
@@ -494,20 +490,12 @@
                 document.getElementById('loginError').style.display = 'none';
                 updateUI();
             } else if (result.kicked) {
-                const code = prompt('Rejoin code:');
-                if (code) {
-                    const r = await apiCall('/api/rejoin', 'POST', { user_id: 'USER-' + username.toUpperCase(), code });
-                    if (r.success) {
-                        currentUser = { id: 'USER-' + username.toUpperCase(), tokens: r.tokens };
-                        document.getElementById('loginScreen').classList.add('hidden');
-                        document.getElementById('mainContent').classList.remove('hidden');
-                        updateUI();
-                    }
-                }
+                alert('Account restricted. Contact admin.');
             } else {
                 document.getElementById('loginError').style.display = 'block';
+                document.getElementById('loginError').textContent = result.message || 'INVALID KEY';
             }
-            document.getElementById('passInput').value = '';
+            document.getElementById('keyInput').value = '';
         }
 
         function updateUI() {
@@ -564,7 +552,6 @@
             dirEl.textContent = result.direction;
             dirEl.className = 'signal-direction ' + (result.signal_type === 'buy' ? 'buy' : result.signal_type === 'sell' ? 'sell' : 'unstable');
             document.getElementById('signalEntry').textContent = result.trade_time;
-            document.getElementById('signalExit').textContent = result.trade_end_time;
         }
 
         function showPackages() { document.getElementById('packageOverlay').classList.remove('hidden'); }
@@ -584,30 +571,84 @@
             document.getElementById('adminPanel').classList.add('show');
             await loadAdminData();
         }
-        function closeAdmin() { document.getElementById('adminPanel').classList.remove('show'); selectedMember = null; document.getElementById('adminActions').style.display = 'none'; }
+        function closeAdmin() { document.getElementById('adminPanel').classList.remove('show'); selectedMember = null; document.getElementById('adminActions').style.display = 'none'; document.getElementById('generatedKey').classList.add('hidden'); }
 
         async function loadAdminData() {
             const users = await apiCall('/api/admin/users');
             const revenue = await apiCall('/api/admin/revenue');
             const pending = await apiCall('/api/admin/pending-purchases');
+            const keys = await apiCall('/api/admin/keys');
+
             document.getElementById('onlineCount').textContent = users.filter(u => u.online).length;
             document.getElementById('totalMembers').textContent = users.length;
             document.getElementById('totalRevenue').textContent = (revenue.total_tokens_sold || 0) + '₹';
+
             let pH = '';
             pending.forEach(p => { pH += `<div class="member-item"><span>${p.user_id} - ${p.package}</span><button onclick="approvePurchase(${p.id})" style="background:var(--gold);color:#000;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-weight:700;">APPROVE</button></div>`; });
-            document.getElementById('pendingPurchases').innerHTML = pH || '<div style="color:#555;">None</div>';
-            let mH = '';
-            users.forEach(u => { mH += `<div class="member-item" onclick="selectMember('${u.id}')"><span>${u.id} ${u.is_admin?'👑':''} 🪙${u.tokens}</span><span style="color:${u.online?'var(--green)':'#555'}">${u.online?'ON':'OFF'}</span></div>`; });
-            document.getElementById('memberList').innerHTML = mH;
+            document.getElementById('pendingPurchases').innerHTML = pH || '<div style="color:#555;">No pending</div>';
+
+            let kH = '';
+            keys.forEach(k => {
+                kH += `<div class="member-item" onclick="selectKey('${k.key}','${k.user_id}')">
+                    <span style="font-size:0.6rem;">${k.key}</span>
+                    <span style="color:${k.used?'var(--red)':'var(--green)'};font-size:0.55rem;">${k.used?'USED':'FREE'}</span>
+                </div>`;
+            });
+            document.getElementById('keysList').innerHTML = kH || '<div style="color:#555;">No keys</div>';
         }
 
-        function selectMember(uid) { selectedMember = uid; document.getElementById('adminActions').style.display = 'flex'; }
-        async function adminAddTokens() { if (!selectedMember) return; const amt = prompt('Amount:'); if (!amt) return; await apiCall('/api/admin/add-tokens', 'POST', { user_id: selectedMember, amount: parseInt(amt) }); loadAdminData(); }
-        async function adminKickMember() { if (!selectedMember) return; if (!confirm('Kick?')) return; const r = await apiCall('/api/admin/kick', 'POST', { user_id: selectedMember }); if (r.success) alert('Code: ' + r.rejoin_code); loadAdminData(); }
-        async function approvePurchase(id) { await apiCall('/api/admin/approve-purchase', 'POST', { purchase_id: id }); loadAdminData(); }
+        function selectKey(key, uid) {
+            selectedMember = uid;
+            generatedKeyValue = key;
+            document.getElementById('adminActions').style.display = 'flex';
+        }
+
+        async function generateKey() {
+            const result = await apiCall('/api/admin/generate-key', 'POST', { password: '2009' });
+            if (result.success) {
+                generatedKeyValue = result.key;
+                document.getElementById('newKeyText').textContent = result.key;
+                document.getElementById('generatedKey').classList.remove('hidden');
+                loadAdminData();
+            }
+        }
+
+        function copyKey() {
+            navigator.clipboard.writeText(generatedKeyValue);
+            alert('Key copied!');
+        }
+
+        async function adminDeleteKey() {
+            if (!generatedKeyValue) return;
+            if (!confirm('Delete key: ' + generatedKeyValue + '?')) return;
+            await apiCall('/api/admin/delete-key', 'POST', { key: generatedKeyValue });
+            document.getElementById('adminActions').style.display = 'none';
+            loadAdminData();
+        }
+
+        async function adminAddTokens() {
+            if (!selectedMember) return;
+            const amt = prompt('Amount:');
+            if (!amt) return;
+            await apiCall('/api/admin/add-tokens', 'POST', { user_id: selectedMember, amount: parseInt(amt) });
+            loadAdminData();
+        }
+
+        async function adminKickMember() {
+            if (!selectedMember) return;
+            if (!confirm('Kick?')) return;
+            const r = await apiCall('/api/admin/kick', 'POST', { user_id: selectedMember });
+            if (r.success) alert('Code: ' + r.rejoin_code);
+            loadAdminData();
+        }
+
+        async function approvePurchase(id) {
+            await apiCall('/api/admin/approve-purchase', 'POST', { purchase_id: id });
+            loadAdminData();
+        }
 
         document.getElementById('loginBtn').addEventListener('click', handleLogin);
-        document.getElementById('passInput').addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); });
+        document.getElementById('keyInput').addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); });
     </script>
 </body>
 </html>

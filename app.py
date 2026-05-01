@@ -7,7 +7,7 @@ import random
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-app.secret_key = 'titan_screenshot_analyzer_2024'
+app.secret_key = 'titan_key_system_2024'
 CORS(app)
 
 # ============ CONFIG ============
@@ -33,6 +33,7 @@ def init_db():
     
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
+        access_key TEXT UNIQUE,
         tokens INTEGER DEFAULT 5,
         analyses INTEGER DEFAULT 0,
         online INTEGER DEFAULT 0,
@@ -41,7 +42,16 @@ def init_db():
         rejoin_code TEXT,
         joined_at TEXT,
         unlimited_until TEXT,
-        total_purchased INTEGER DEFAULT 0
+        total_purchased INTEGER DEFAULT 0,
+        ip_address TEXT
+    )''')
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS keys (
+        key TEXT PRIMARY KEY,
+        user_id TEXT,
+        created_at TEXT,
+        used INTEGER DEFAULT 0,
+        ip_address TEXT
     )''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS signals (
@@ -75,11 +85,16 @@ def init_db():
         created_at TEXT
     )''')
     
+    # Create admin
     c.execute("SELECT id FROM users WHERE id = ?", (ADMIN_ID,))
     if not c.fetchone():
-        c.execute('''INSERT INTO users (id, tokens, analyses, online, kicked, is_admin, joined_at)
-                     VALUES (?, 9999, 0, 0, 0, 1, ?)''',
-                  (ADMIN_ID, datetime.utcnow().isoformat()))
+        admin_key = 'TITAN-ADMIN-' + uuid.uuid4().hex[:4].upper()
+        c.execute('''INSERT INTO users (id, access_key, tokens, analyses, online, kicked, is_admin, joined_at)
+                     VALUES (?, ?, 9999, 0, 0, 0, 1, ?)''',
+                  (ADMIN_ID, admin_key, get_ist_now().isoformat()))
+        c.execute('''INSERT INTO keys (key, user_id, created_at, used)
+                     VALUES (?, ?, ?, 0)''',
+                  (admin_key, ADMIN_ID, get_ist_now().isoformat()))
     
     conn.commit()
     conn.close()
@@ -94,6 +109,12 @@ def get_db():
 def get_user(user_id):
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    return user
+
+def get_user_by_key(key):
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE access_key = ?", (key,)).fetchone()
     conn.close()
     return user
 
@@ -114,30 +135,87 @@ def index():
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.json
-    password = data.get('password', '')
-    username = data.get('username', '').strip().upper()
+    access_key = data.get('key', '').strip().upper()
+    ip = request.remote_addr
     
-    if password == ADMIN_PASSWORD and username == 'ADMIN':
-        update_user(ADMIN_ID, online=1, kicked=0)
-        user = get_user(ADMIN_ID)
-        return jsonify({'success': True, 'user_id': ADMIN_ID, 'tokens': user['tokens'], 'analyses': user['analyses'], 'is_admin': True})
+    if not access_key:
+        return jsonify({'success': False, 'message': 'Enter access key'})
     
-    if password == PLATFORM_PASSWORD:
-        if not username:
-            return jsonify({'success': False, 'message': 'Enter username'})
-        user_id = 'USER-' + username
-        user = get_user(user_id)
-        if user and user['kicked']:
-            return jsonify({'success': False, 'kicked': True, 'message': 'Account restricted'})
-        if user and not user['kicked']:
-            update_user(user_id, online=1)
-            return jsonify({'success': True, 'user_id': user_id, 'tokens': user['tokens'], 'analyses': user['analyses'], 'is_admin': False})
-        conn = get_db()
-        conn.execute('''INSERT INTO users (id, tokens, analyses, online, kicked, is_admin, joined_at) VALUES (?, ?, 0, 1, 0, 0, ?)''', (user_id, DEFAULT_TOKENS, get_ist_now().isoformat()))
-        conn.commit()
+    # Check if key exists
+    conn = get_db()
+    key_data = conn.execute("SELECT * FROM keys WHERE key = ?", (access_key,)).fetchone()
+    
+    if not key_data:
         conn.close()
-        return jsonify({'success': True, 'user_id': user_id, 'tokens': DEFAULT_TOKENS, 'analyses': 0, 'is_admin': False})
-    return jsonify({'success': False, 'message': 'Invalid'})
+        return jsonify({'success': False, 'message': 'Invalid key'})
+    
+    user = get_user(key_data['user_id'])
+    
+    if not user:
+        conn.close()
+        return jsonify({'success': False, 'message': 'User not found'})
+    
+    if user['kicked']:
+        conn.close()
+        return jsonify({'success': False, 'kicked': True, 'message': 'Account restricted'})
+    
+    # Key already used by different IP
+    if key_data['used'] == 1 and key_data['ip_address'] and key_data['ip_address'] != ip:
+        conn.close()
+        return jsonify({'success': False, 'message': 'Key already in use on another device'})
+    
+    # Mark key as used
+    conn.execute("UPDATE keys SET used = 1, ip_address = ? WHERE key = ?", (ip, access_key))
+    conn.commit()
+    conn.close()
+    
+    update_user(user['id'], online=1, ip_address=ip)
+    
+    return jsonify({
+        'success': True,
+        'user_id': user['id'],
+        'tokens': user['tokens'],
+        'analyses': user['analyses'],
+        'is_admin': user['is_admin']
+    })
+
+@app.route('/api/admin/generate-key', methods=['POST'])
+def admin_generate_key():
+    data = request.json
+    admin_password = data.get('password', '')
+    
+    if admin_password != ADMIN_PASSWORD:
+        return jsonify({'success': False, 'message': 'Invalid admin password'})
+    
+    # Create new user
+    user_id = 'TITAN-' + uuid.uuid4().hex[:6].upper()
+    access_key = 'TITAN-' + uuid.uuid4().hex[:8].upper()
+    
+    conn = get_db()
+    conn.execute('''INSERT INTO users (id, access_key, tokens, analyses, online, kicked, is_admin, joined_at)
+                    VALUES (?, ?, ?, 0, 0, 0, 0, ?)''',
+                 (user_id, access_key, DEFAULT_TOKENS, get_ist_now().isoformat()))
+    conn.execute('''INSERT INTO keys (key, user_id, created_at, used, ip_address)
+                    VALUES (?, ?, ?, 0, NULL)''',
+                 (access_key, user_id, get_ist_now().isoformat()))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'key': access_key,
+        'user_id': user_id,
+        'tokens': DEFAULT_TOKENS
+    })
+
+@app.route('/api/admin/keys', methods=['GET'])
+def admin_keys():
+    conn = get_db()
+    keys = conn.execute('''SELECT k.*, u.tokens, u.analyses, u.online, u.kicked 
+                           FROM keys k JOIN users u ON k.user_id = u.id 
+                           ORDER BY k.created_at DESC''').fetchall()
+    conn.close()
+    return jsonify([dict(k) for k in keys])
 
 @app.route('/api/rejoin', methods=['POST'])
 def api_rejoin():
@@ -174,7 +252,6 @@ def api_analyze():
     next_min = now + timedelta(minutes=1)
     next_min = next_min.replace(second=0, microsecond=0)
     trade_time = next_min.strftime('%H:%M')
-    end_time = (next_min + timedelta(minutes=4)).strftime('%H:%M')
     
     r = random.random()
     if r < 0.25:
@@ -185,13 +262,17 @@ def api_analyze():
         result_type, direction = 'unstable', 'UNSTABLE'
     
     conn = get_db()
-    conn.execute('''INSERT INTO signals (user_id, direction, price, trade_time, trade_end_time, result_type, screenshot_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                 (user_id, direction, 0, trade_time, end_time, result_type, '', now.isoformat()))
+    conn.execute('''INSERT INTO signals (user_id, direction, price, trade_time, trade_end_time, result_type, screenshot_name, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                 (user_id, direction, 0, trade_time, '', result_type, '', now.isoformat()))
     conn.commit()
     conn.close()
     
     updated_user = get_user(user_id)
-    return jsonify({'success': True, 'signal_type': result_type, 'direction': direction, 'trade_time': trade_time, 'trade_end_time': end_time, 'tokens': updated_user['tokens']})
+    return jsonify({
+        'success': True, 'signal_type': result_type, 'direction': direction,
+        'trade_time': trade_time, 'tokens': updated_user['tokens']
+    })
 
 @app.route('/api/purchase', methods=['POST'])
 def api_purchase():
@@ -201,10 +282,12 @@ def api_purchase():
     if package_key not in PACKAGES: return jsonify({'success': False})
     package = PACKAGES[package_key]
     conn = get_db()
-    conn.execute('''INSERT INTO purchases (user_id, package, amount, tokens, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)''', (user_id, package_key, package['price'], package['tokens'], get_ist_now().isoformat()))
+    conn.execute('''INSERT INTO purchases (user_id, package, amount, tokens, status, created_at)
+                    VALUES (?, ?, ?, ?, 'pending', ?)''',
+                 (user_id, package_key, package['price'], package['tokens'], get_ist_now().isoformat()))
     conn.commit()
     conn.close()
-    telegram_msg = f"BUY%20REQUEST%0AUser:%20{user_id}%0APackage:%20{package_key}%0ATokens:%20{package['tokens']}%0APrice:%20{package['price']}"
+    telegram_msg = f"BUY%20REQUEST%0AUser:%20{user_id}%0APackage:%20{package_key}%0APrice:%20{package['price']}"
     return jsonify({'success': True, 'telegram_link': f"https://t.me/vikranthxx0?text={telegram_msg}"})
 
 @app.route('/api/admin/verify', methods=['POST'])
@@ -232,7 +315,9 @@ def api_approve_purchase():
     else:
         update_user(purchase['user_id'], tokens=user['tokens'] + purchase['tokens'])
     update_user(purchase['user_id'], total_purchased=user['total_purchased'] + purchase['tokens'])
-    conn.execute('''INSERT INTO revenue (user_id, package, amount, tokens, created_at) VALUES (?, ?, ?, ?, ?)''', (purchase['user_id'], purchase['package'], purchase['amount'], purchase['tokens'], get_ist_now().isoformat()))
+    conn.execute('''INSERT INTO revenue (user_id, package, amount, tokens, created_at)
+                    VALUES (?, ?, ?, ?, ?)''',
+                 (purchase['user_id'], purchase['package'], purchase['amount'], purchase['tokens'], get_ist_now().isoformat()))
     conn.execute("DELETE FROM purchases WHERE id = ?", (data.get('purchase_id', ''),))
     conn.commit()
     conn.close()
@@ -257,6 +342,19 @@ def api_admin_kick():
     rejoin_code = 'TITAN-' + uuid.uuid4().hex[:8].upper()
     update_user(data['user_id'], kicked=1, online=0, rejoin_code=rejoin_code)
     return jsonify({'success': True, 'rejoin_code': rejoin_code})
+
+@app.route('/api/admin/delete-key', methods=['POST'])
+def api_admin_delete_key():
+    data = request.json
+    key = data.get('key', '')
+    conn = get_db()
+    key_data = conn.execute("SELECT * FROM keys WHERE key = ?", (key,)).fetchone()
+    if key_data:
+        conn.execute("DELETE FROM keys WHERE key = ?", (key,))
+        conn.execute("DELETE FROM users WHERE id = ?", (key_data['user_id'],))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 @app.route('/api/user/info', methods=['POST'])
 def api_user_info():
