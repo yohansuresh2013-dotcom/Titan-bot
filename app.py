@@ -80,7 +80,7 @@ def init_db():
     if not c.fetchone():
         c.execute('''INSERT INTO users (id, tokens, analyses, online, kicked, is_admin, joined_at)
                      VALUES (?, 9999, 0, 0, 0, 1, ?)''',
-                  (ADMIN_ID, datetime.now().isoformat()))
+                  (ADMIN_ID, datetime.utcnow().isoformat()))
     
     conn.commit()
     conn.close()
@@ -104,6 +104,10 @@ def update_user(user_id, **kwargs):
         conn.execute(f"UPDATE users SET {key} = ? WHERE id = ?", (value, user_id))
     conn.commit()
     conn.close()
+
+def get_ist_now():
+    """Get current time in Indian Standard Time (UTC+5:30)"""
+    return datetime.utcnow() + timedelta(hours=5, minutes=30)
 
 @app.route('/')
 def index():
@@ -139,7 +143,7 @@ def api_login():
         conn = get_db()
         conn.execute('''INSERT INTO users (id, tokens, analyses, online, kicked, is_admin, joined_at)
                         VALUES (?, ?, 0, 1, 0, 0, ?)''',
-                     (new_id, DEFAULT_TOKENS, datetime.now().isoformat()))
+                     (new_id, DEFAULT_TOKENS, get_ist_now().isoformat()))
         conn.commit()
         conn.close()
         return jsonify({
@@ -174,25 +178,26 @@ def api_analyze():
     is_unlimited = False
     if user['unlimited_until']:
         unlimited_date = datetime.fromisoformat(user['unlimited_until'])
-        if datetime.now() < unlimited_date:
+        if get_ist_now() < unlimited_date:
             is_unlimited = True
         else:
             update_user(user_id, unlimited_until=None)
     
     if not is_unlimited:
         if user['tokens'] <= 0:
-            return jsonify({'success': False, 'message': 'No tokens'})
+            return jsonify({'success': False, 'message': 'No tokens! Buy more.'})
         update_user(user_id, tokens=user['tokens'] - 1)
     
     update_user(user_id, analyses=user['analyses'] + 1)
     
-    # Calculate times
-    now = datetime.now()
+    # Calculate times in IST
+    now = get_ist_now()
     next_min = now + timedelta(minutes=1)
     next_min = next_min.replace(second=0, microsecond=0)
     trade_time = next_min.strftime('%H:%M')
     end_time = (next_min + timedelta(minutes=4)).strftime('%H:%M')
     
+    # Signal logic: 25% Buy, 25% Sell, 50% Unstable
     r = random.random()
     price = 16.97 + random.uniform(-0.3, 0.3)
     
@@ -239,7 +244,7 @@ def api_purchase():
     conn = get_db()
     conn.execute('''INSERT INTO purchases (user_id, package, amount, tokens, status, created_at)
                     VALUES (?, ?, ?, ?, 'pending', ?)''',
-                 (user_id, package_key, package['price'], package['tokens'], datetime.now().isoformat()))
+                 (user_id, package_key, package['price'], package['tokens'], get_ist_now().isoformat()))
     conn.commit()
     conn.close()
     
@@ -287,7 +292,7 @@ def api_approve_purchase():
     
     user = get_user(purchase['user_id'])
     if purchase['package'] == 'unlimited':
-        unlimited_until = (datetime.now() + timedelta(days=30)).isoformat()
+        unlimited_until = (get_ist_now() + timedelta(days=30)).isoformat()
         update_user(purchase['user_id'], unlimited_until=unlimited_until)
     else:
         update_user(purchase['user_id'], tokens=user['tokens'] + purchase['tokens'])
@@ -296,7 +301,7 @@ def api_approve_purchase():
     
     conn.execute('''INSERT INTO revenue (user_id, package, amount, tokens, created_at)
                     VALUES (?, ?, ?, ?, ?)''',
-                 (purchase['user_id'], purchase['package'], purchase['amount'], purchase['tokens'], datetime.now().isoformat()))
+                 (purchase['user_id'], purchase['package'], purchase['amount'], purchase['tokens'], get_ist_now().isoformat()))
     
     conn.execute("DELETE FROM purchases WHERE id = ?", (purchase_id,))
     conn.commit()
