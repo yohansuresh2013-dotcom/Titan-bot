@@ -13,6 +13,7 @@ CORS(app)
 # ============ CONFIG ============
 PLATFORM_PASSWORD = 'NVTITAN'
 ADMIN_PASSWORD = '2009'
+ADMIN_KEY = '2009'
 DEFAULT_TOKENS = 5
 ADMIN_ID = 'BZ-ADMIN'
 TELEGRAM_USERNAME = '@vikranthxx0'
@@ -26,6 +27,9 @@ PACKAGES = {
 }
 
 DB_PATH = 'titan_database.db'
+
+def get_ist_now():
+    return datetime.utcnow() + timedelta(hours=5, minutes=30)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -85,16 +89,15 @@ def init_db():
         created_at TEXT
     )''')
     
-    # Create admin
+    # Create admin with fixed key "2009"
     c.execute("SELECT id FROM users WHERE id = ?", (ADMIN_ID,))
     if not c.fetchone():
-        admin_key = 'TITAN-ADMIN-' + uuid.uuid4().hex[:4].upper()
         c.execute('''INSERT INTO users (id, access_key, tokens, analyses, online, kicked, is_admin, joined_at)
                      VALUES (?, ?, 9999, 0, 0, 0, 1, ?)''',
-                  (ADMIN_ID, admin_key, get_ist_now().isoformat()))
+                  (ADMIN_ID, ADMIN_KEY, get_ist_now().isoformat()))
         c.execute('''INSERT INTO keys (key, user_id, created_at, used)
                      VALUES (?, ?, ?, 0)''',
-                  (admin_key, ADMIN_ID, get_ist_now().isoformat()))
+                  (ADMIN_KEY, ADMIN_ID, get_ist_now().isoformat()))
     
     conn.commit()
     conn.close()
@@ -120,13 +123,10 @@ def get_user_by_key(key):
 
 def update_user(user_id, **kwargs):
     conn = get_db()
-    for key, value in kwargs.items():
-        conn.execute(f"UPDATE users SET {key} = ? WHERE id = ?", (value, user_id))
+    for k, v in kwargs.items():
+        conn.execute(f"UPDATE users SET {k} = ? WHERE id = ?", (v, user_id))
     conn.commit()
     conn.close()
-
-def get_ist_now():
-    return datetime.utcnow() + timedelta(hours=5, minutes=30)
 
 @app.route('/')
 def index():
@@ -141,7 +141,7 @@ def api_login():
     if not access_key:
         return jsonify({'success': False, 'message': 'Enter access key'})
     
-    # Check if key exists
+    # Check if key exists in keys table
     conn = get_db()
     key_data = conn.execute("SELECT * FROM keys WHERE key = ?", (access_key,)).fetchone()
     
@@ -159,12 +159,7 @@ def api_login():
         conn.close()
         return jsonify({'success': False, 'kicked': True, 'message': 'Account restricted'})
     
-    # Key already used by different IP
-    if key_data['used'] == 1 and key_data['ip_address'] and key_data['ip_address'] != ip:
-        conn.close()
-        return jsonify({'success': False, 'message': 'Key already in use on another device'})
-    
-    # Mark key as used
+    # Mark key as used with this IP
     conn.execute("UPDATE keys SET used = 1, ip_address = ? WHERE key = ?", (ip, access_key))
     conn.commit()
     conn.close()
@@ -187,7 +182,6 @@ def admin_generate_key():
     if admin_password != ADMIN_PASSWORD:
         return jsonify({'success': False, 'message': 'Invalid admin password'})
     
-    # Create new user
     user_id = 'TITAN-' + uuid.uuid4().hex[:6].upper()
     access_key = 'TITAN-' + uuid.uuid4().hex[:8].upper()
     
