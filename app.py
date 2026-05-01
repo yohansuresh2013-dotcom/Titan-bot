@@ -75,7 +75,6 @@ def init_db():
         created_at TEXT
     )''')
     
-    # Create admin
     c.execute("SELECT id FROM users WHERE id = ?", (ADMIN_ID,))
     if not c.fetchone():
         c.execute('''INSERT INTO users (id, tokens, analyses, online, kicked, is_admin, joined_at)
@@ -106,7 +105,6 @@ def update_user(user_id, **kwargs):
     conn.close()
 
 def get_ist_now():
-    """Get current time in Indian Standard Time (UTC+5:30)"""
     return datetime.utcnow() + timedelta(hours=5, minutes=30)
 
 @app.route('/')
@@ -117,41 +115,29 @@ def index():
 def api_login():
     data = request.json
     password = data.get('password', '')
+    username = data.get('username', '').strip().upper()
     
-    if password == ADMIN_PASSWORD:
+    if password == ADMIN_PASSWORD and username == 'ADMIN':
         update_user(ADMIN_ID, online=1, kicked=0)
         user = get_user(ADMIN_ID)
-        return jsonify({
-            'success': True, 'user_id': ADMIN_ID, 'tokens': user['tokens'],
-            'analyses': user['analyses'], 'is_admin': True
-        })
+        return jsonify({'success': True, 'user_id': ADMIN_ID, 'tokens': user['tokens'], 'analyses': user['analyses'], 'is_admin': True})
     
     if password == PLATFORM_PASSWORD:
-        user_id = data.get('returning_id', '')
-        if user_id:
-            user = get_user(user_id)
-            if user and user['kicked']:
-                return jsonify({'success': False, 'kicked': True, 'message': 'Account restricted'})
-            if user and not user['kicked']:
-                update_user(user_id, online=1)
-                return jsonify({
-                    'success': True, 'user_id': user_id, 'tokens': user['tokens'],
-                    'analyses': user['analyses'], 'is_admin': False
-                })
-        
-        new_id = 'TITAN-' + uuid.uuid4().hex[:6].upper()
+        if not username:
+            return jsonify({'success': False, 'message': 'Enter username'})
+        user_id = 'USER-' + username
+        user = get_user(user_id)
+        if user and user['kicked']:
+            return jsonify({'success': False, 'kicked': True, 'message': 'Account restricted'})
+        if user and not user['kicked']:
+            update_user(user_id, online=1)
+            return jsonify({'success': True, 'user_id': user_id, 'tokens': user['tokens'], 'analyses': user['analyses'], 'is_admin': False})
         conn = get_db()
-        conn.execute('''INSERT INTO users (id, tokens, analyses, online, kicked, is_admin, joined_at)
-                        VALUES (?, ?, 0, 1, 0, 0, ?)''',
-                     (new_id, DEFAULT_TOKENS, get_ist_now().isoformat()))
+        conn.execute('''INSERT INTO users (id, tokens, analyses, online, kicked, is_admin, joined_at) VALUES (?, ?, 0, 1, 0, 0, ?)''', (user_id, DEFAULT_TOKENS, get_ist_now().isoformat()))
         conn.commit()
         conn.close()
-        return jsonify({
-            'success': True, 'user_id': new_id, 'tokens': DEFAULT_TOKENS,
-            'analyses': 0, 'is_admin': False
-        })
-    
-    return jsonify({'success': False, 'message': 'Invalid password'})
+        return jsonify({'success': True, 'user_id': user_id, 'tokens': DEFAULT_TOKENS, 'analyses': 0, 'is_admin': False})
+    return jsonify({'success': False, 'message': 'Invalid'})
 
 @app.route('/api/rejoin', methods=['POST'])
 def api_rejoin():
@@ -159,8 +145,7 @@ def api_rejoin():
     user_id = data.get('user_id', '')
     code = data.get('code', '')
     user = get_user(user_id)
-    if not user:
-        return jsonify({'success': False})
+    if not user: return jsonify({'success': False})
     if code == 'ADMIN-OVERRIDE' or code == user['rejoin_code']:
         update_user(user_id, kicked=0, tokens=max(user['tokens'], 5), online=1)
         return jsonify({'success': True, 'tokens': max(user['tokens'], 5)})
@@ -171,177 +156,112 @@ def api_analyze():
     data = request.json
     user_id = data.get('user_id', '')
     user = get_user(user_id)
-    if not user:
-        return jsonify({'success': False, 'message': 'User not found'})
+    if not user: return jsonify({'success': False, 'message': 'User not found'})
     
-    # Check unlimited
     is_unlimited = False
     if user['unlimited_until']:
         unlimited_date = datetime.fromisoformat(user['unlimited_until'])
-        if get_ist_now() < unlimited_date:
-            is_unlimited = True
-        else:
-            update_user(user_id, unlimited_until=None)
+        if get_ist_now() < unlimited_date: is_unlimited = True
+        else: update_user(user_id, unlimited_until=None)
     
     if not is_unlimited:
-        if user['tokens'] <= 0:
-            return jsonify({'success': False, 'message': 'No tokens! Buy more.'})
+        if user['tokens'] <= 0: return jsonify({'success': False, 'message': 'No tokens!'})
         update_user(user_id, tokens=user['tokens'] - 1)
     
     update_user(user_id, analyses=user['analyses'] + 1)
     
-    # Calculate times in IST
     now = get_ist_now()
     next_min = now + timedelta(minutes=1)
     next_min = next_min.replace(second=0, microsecond=0)
     trade_time = next_min.strftime('%H:%M')
     end_time = (next_min + timedelta(minutes=4)).strftime('%H:%M')
     
-    # Signal logic: 25% Buy, 25% Sell, 50% Unstable
     r = random.random()
-    price = 16.97 + random.uniform(-0.3, 0.3)
-    
     if r < 0.25:
-        result_type = 'buy'
-        direction = 'BUY'
-        price = 16.97 + random.uniform(0, 0.3)
+        result_type, direction = 'buy', 'BUY'
     elif r < 0.50:
-        result_type = 'sell'
-        direction = 'SELL'
-        price = 16.97 - random.uniform(0, 0.3)
+        result_type, direction = 'sell', 'SELL'
     else:
-        result_type = 'unstable'
-        direction = 'UNSTABLE'
-    
-    screenshot_name = f"chart_{user_id}_{now.strftime('%H%M%S')}.png"
+        result_type, direction = 'unstable', 'UNSTABLE'
     
     conn = get_db()
-    conn.execute('''INSERT INTO signals (user_id, direction, price, trade_time, trade_end_time, result_type, screenshot_name, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                 (user_id, direction, round(price, 2), trade_time, end_time, result_type, screenshot_name, now.isoformat()))
+    conn.execute('''INSERT INTO signals (user_id, direction, price, trade_time, trade_end_time, result_type, screenshot_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                 (user_id, direction, 0, trade_time, end_time, result_type, '', now.isoformat()))
     conn.commit()
     conn.close()
     
     updated_user = get_user(user_id)
-    
-    return jsonify({
-        'success': True, 'signal_type': result_type, 'direction': direction,
-        'price': round(price, 2), 'trade_time': trade_time, 'trade_end_time': end_time,
-        'tokens': updated_user['tokens']
-    })
+    return jsonify({'success': True, 'signal_type': result_type, 'direction': direction, 'trade_time': trade_time, 'trade_end_time': end_time, 'tokens': updated_user['tokens']})
 
 @app.route('/api/purchase', methods=['POST'])
 def api_purchase():
     data = request.json
     user_id = data.get('user_id', '')
     package_key = data.get('package', '')
-    
-    if package_key not in PACKAGES:
-        return jsonify({'success': False, 'message': 'Invalid package'})
-    
+    if package_key not in PACKAGES: return jsonify({'success': False})
     package = PACKAGES[package_key]
-    
     conn = get_db()
-    conn.execute('''INSERT INTO purchases (user_id, package, amount, tokens, status, created_at)
-                    VALUES (?, ?, ?, ?, 'pending', ?)''',
-                 (user_id, package_key, package['price'], package['tokens'], get_ist_now().isoformat()))
+    conn.execute('''INSERT INTO purchases (user_id, package, amount, tokens, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)''', (user_id, package_key, package['price'], package['tokens'], get_ist_now().isoformat()))
     conn.commit()
     conn.close()
-    
     telegram_msg = f"BUY%20REQUEST%0AUser:%20{user_id}%0APackage:%20{package_key}%0ATokens:%20{package['tokens']}%0APrice:%20{package['price']}"
-    telegram_link = f"https://t.me/vikranthxx0?text={telegram_msg}"
-    
-    return jsonify({
-        'success': True,
-        'telegram_link': telegram_link,
-        'message': f'Contact {TELEGRAM_USERNAME} to complete payment'
-    })
+    return jsonify({'success': True, 'telegram_link': f"https://t.me/vikranthxx0?text={telegram_msg}"})
 
 @app.route('/api/admin/verify', methods=['POST'])
 def api_admin_verify():
-    data = request.json
-    if data.get('password') == ADMIN_PASSWORD:
-        return jsonify({'success': True})
-    return jsonify({'success': False})
+    return jsonify({'success': request.json.get('password') == ADMIN_PASSWORD})
 
 @app.route('/api/admin/users', methods=['GET'])
 def api_admin_users():
-    users = get_db().execute("SELECT * FROM users WHERE kicked = 0").fetchall()
-    return jsonify([dict(u) for u in users])
+    return jsonify([dict(u) for u in get_db().execute("SELECT * FROM users WHERE kicked = 0").fetchall()])
 
 @app.route('/api/admin/revenue', methods=['GET'])
 def api_admin_revenue():
-    revenue = get_db().execute("SELECT * FROM revenue ORDER BY id DESC LIMIT 50").fetchall()
     total = get_db().execute("SELECT COUNT(*) as total, SUM(tokens) as tokens FROM revenue").fetchone()
-    return jsonify({
-        'records': [dict(r) for r in revenue],
-        'total_purchases': total['total'] or 0,
-        'total_tokens_sold': total['tokens'] or 0
-    })
+    return jsonify({'total_purchases': total['total'] or 0, 'total_tokens_sold': total['tokens'] or 0})
 
 @app.route('/api/admin/approve-purchase', methods=['POST'])
 def api_approve_purchase():
     data = request.json
-    purchase_id = data.get('purchase_id', '')
-    
     conn = get_db()
-    purchase = conn.execute("SELECT * FROM purchases WHERE id = ?", (purchase_id,)).fetchone()
-    if not purchase:
-        conn.close()
-        return jsonify({'success': False})
-    
+    purchase = conn.execute("SELECT * FROM purchases WHERE id = ?", (data.get('purchase_id', ''),)).fetchone()
+    if not purchase: conn.close(); return jsonify({'success': False})
     user = get_user(purchase['user_id'])
     if purchase['package'] == 'unlimited':
-        unlimited_until = (get_ist_now() + timedelta(days=30)).isoformat()
-        update_user(purchase['user_id'], unlimited_until=unlimited_until)
+        update_user(purchase['user_id'], unlimited_until=(get_ist_now() + timedelta(days=30)).isoformat())
     else:
         update_user(purchase['user_id'], tokens=user['tokens'] + purchase['tokens'])
-    
     update_user(purchase['user_id'], total_purchased=user['total_purchased'] + purchase['tokens'])
-    
-    conn.execute('''INSERT INTO revenue (user_id, package, amount, tokens, created_at)
-                    VALUES (?, ?, ?, ?, ?)''',
-                 (purchase['user_id'], purchase['package'], purchase['amount'], purchase['tokens'], get_ist_now().isoformat()))
-    
-    conn.execute("DELETE FROM purchases WHERE id = ?", (purchase_id,))
+    conn.execute('''INSERT INTO revenue (user_id, package, amount, tokens, created_at) VALUES (?, ?, ?, ?, ?)''', (purchase['user_id'], purchase['package'], purchase['amount'], purchase['tokens'], get_ist_now().isoformat()))
+    conn.execute("DELETE FROM purchases WHERE id = ?", (data.get('purchase_id', ''),))
     conn.commit()
     conn.close()
-    
     return jsonify({'success': True})
 
 @app.route('/api/admin/pending-purchases', methods=['GET'])
 def api_pending_purchases():
-    purchases = get_db().execute("SELECT * FROM purchases WHERE status = 'pending' ORDER BY id DESC").fetchall()
-    return jsonify([dict(p) for p in purchases])
+    return jsonify([dict(p) for p in get_db().execute("SELECT * FROM purchases WHERE status = 'pending' ORDER BY id DESC").fetchall()])
 
 @app.route('/api/admin/add-tokens', methods=['POST'])
 def api_admin_add_tokens():
     data = request.json
-    user_id = data.get('user_id', '')
-    amount = int(data.get('amount', 0))
-    user = get_user(user_id)
-    if not user:
-        return jsonify({'success': False})
-    update_user(user_id, tokens=user['tokens'] + amount)
-    return jsonify({'success': True, 'new_tokens': user['tokens'] + amount})
+    user = get_user(data.get('user_id', ''))
+    if not user: return jsonify({'success': False})
+    update_user(data['user_id'], tokens=user['tokens'] + int(data.get('amount', 0)))
+    return jsonify({'success': True})
 
 @app.route('/api/admin/kick', methods=['POST'])
 def api_admin_kick():
     data = request.json
-    user_id = data.get('user_id', '')
-    if user_id == ADMIN_ID:
-        return jsonify({'success': False})
+    if data.get('user_id') == ADMIN_ID: return jsonify({'success': False})
     rejoin_code = 'TITAN-' + uuid.uuid4().hex[:8].upper()
-    update_user(user_id, kicked=1, online=0, rejoin_code=rejoin_code)
+    update_user(data['user_id'], kicked=1, online=0, rejoin_code=rejoin_code)
     return jsonify({'success': True, 'rejoin_code': rejoin_code})
 
 @app.route('/api/user/info', methods=['POST'])
 def api_user_info():
-    data = request.json
-    user = get_user(data.get('user_id', ''))
-    if user:
-        return jsonify({'success': True, **dict(user)})
-    return jsonify({'success': False})
+    user = get_user(request.json.get('user_id', ''))
+    return jsonify({'success': True, **dict(user)}) if user else jsonify({'success': False})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
