@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TITAN SCREENSHOT ANALYZER • Premium</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --bg-card: #080808;
+            --bg-input: #0d0d0d;
+            --white: #ffffff;
+            --white-soft: #e0e0e0;
+            --gray: #666666;
+            --gray-light: #999999;
+            --border: #1a1a1a;
+            --border-glow: #333333;
+            --green: #00ff88;
+            --red: #ff4444;
+            --gold: #ffaa00;
+            --glow-white: 0 0 20px rgba(255,255,255,0.2);
+            --glow-strong: 0 0 40px rgba(255,255,255,0.4);
+            --glow-green: 0 0 20px rgba(0,255,136,0.4);
+            --glow-red: 0 0 20px rgba(255,68,68,0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--white);
+            min-height: 100vh;
+            width: 100vw;
+            overflow-x: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Background floating candles */
+        .bg-candles {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .float-candle {
+            position: absolute;
+            font-size: 1.5rem;
+            animation: floatUp 10s infinite ease-in-out;
+            opacity: 0.15;
+        }
+        .float-candle.green { color: #00ff88; }
+        .float-candle.red { color: #ff4444; }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) rotate(0deg); opacity: 0.1; }
+            25% { transform: translateY(-60px) rotate(90deg); opacity: 0.25; }
+            50% { transform: translateY(-30px) rotate(180deg); opacity: 0.15; }
+            75% { transform: translateY(-80px) rotate(270deg); opacity: 0.2; }
+            100% { transform: translateY(0) rotate(360deg); opacity: 0.1; }
+        }
+
+        /* Main container */
+        .app-container {
+            width: 100vw;
+            min-height: 100vh;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 1;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+        }
+
+        /* Header */
+        .header {
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(20px);
+            z-index: 100;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .logo-icon {
+            width: 38px; height: 38px;
+            background: #000;
+            border: 2px solid var(--white);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--glow-white);
+            animation: logoPulse 3s infinite;
+        }
+        @keyframes logoPulse {
+            0%,100% { box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+            50% { box-shadow: 0 0 35px rgba(255,255,255,0.5); }
+        }
+        .logo-icon span { font-size: 1.2rem; font-weight: 900; }
+        .logo-text { font-weight: 900; font-size: 0.9rem; letter-spacing: 2px; text-shadow: var(--glow-white); }
+        .logo-sub { font-size: 0.5rem; letter-spacing: 3px; color: var(--gray); display: block; }
+
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .user-id { font-size: 0.55rem; color: var(--gray); background: var(--bg-input); padding: 4px 10px; border-radius: 20px; letter-spacing: 1px; }
+        .token-badge {
+            background: #000;
+            border: 1px solid var(--border-glow);
+            border-radius: 20px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+            font-size: 0.7rem;
+            cursor: pointer;
+            position: relative;
+        }
+        .plus-btn {
+            background: var(--white);
+            color: #000;
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-left: 2px;
+        }
+        .admin-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--gray);
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .hidden { display: none !important; }
+
+        /* Chart upload area */
+        .chart-upload-zone {
+            background: var(--bg-card);
+            border: 2px dashed var(--border);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        .chart-upload-zone:hover { border-color: var(--border-glow); box-shadow: var(--glow-white); }
+        .chart-upload-zone.has-image { border-style: solid; border-color: var(--border-glow); padding: 8px; }
+        .upload-preview { max-width: 100%; max-height: 300px; border-radius: 14px; }
+        .upload-icon { font-size: 3rem; opacity: 0.5; }
+        .upload-text { font-size: 0.8rem; color: var(--gray); letter-spacing: 1px; }
+
+        /* Buttons */
+        .btn-row { display: flex; gap: 10px; }
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 16px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-align: center;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--white);
+        }
+        .btn-analyze {
+            background: #000;
+            border: 2px solid var(--white);
+            color: var(--white);
+            font-weight: 900;
+            box-shadow: var(--glow-white);
+            letter-spacing: 2px;
+        }
+        .btn-analyze:hover { background: #111; box-shadow: var(--glow-strong); }
+        .btn:disabled { opacity: 0.3; pointer-events: none; }
+
+        /* Signal output */
+        .signal-output {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glow);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: var(--glow-white);
+            display: none;
+        }
+        .signal-output.show { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .signal-direction {
+            font-size: 2rem;
+            font-weight: 900;
+            letter-spacing: 3px;
+            margin: 10px 0;
+        }
+        .signal-direction.buy { color: var(--green); text-shadow: var(--glow-green); }
+        .signal-direction.sell { color: var(--red); text-shadow: var(--glow-red); }
+        .signal-direction.unstable { color: var(--gold); }
+
+        .signal-info { display: flex; justify-content: space-around; margin-top: 12px; font-size: 0.8rem; color: var(--gray-light); }
+        .signal-info strong { color: var(--white); font-size: 1rem; }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999;
+        }
+        .loading-ring {
+            width: 70px; height: 70px;
+            border: 3px solid #222;
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { font-weight: 900; letter-spacing: 3px; font-size: 1rem; }
+        .loading-count { font-size: 3rem; font-weight: 900; margin-top: 10px; }
+
+        /* Package popup */
+        .package-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9998;
+        }
+        .package-popup {
+            background: #0a0a0a;
+            border: 1px solid var(--border-glow);
+            border-radius: 24px;
+            padding: 24px;
+            width: 90%;
+            max-width: 380px;
+            box-shadow: var(--glow-strong);
+        }
+        .package-popup h3 { text-align: center; letter-spacing: 2px; margin-bottom: 16px; }
+        .pkg-option {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            margin: 8px 0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        .pkg-option:hover { border-color: #fff; box-shadow: var(--glow-white); }
+        .pkg-option .tokens { font-weight: 900; font-size: 1.1rem; }
+        .pkg-option .price { color: var(--gold); font-weight: 700; }
+
+        /* Login */
+        .login-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 40px;
+        }
+        .login-logo {
+            width: 70px; height: 70px;
+            border: 2px solid #fff;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 900;
+            box-shadow: var(--glow-white);
+            animation: logoPulse 3s infinite;
+        }
+        .login-title { font-weight: 900; font-size: 1.3rem; letter-spacing: 3px; text-shadow: var(--glow-white); }
+        .input-pass {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            color: #fff;
+            font-size: 1rem;
+            text-align: center;
+            letter-spacing: 4px;
+            outline: none;
+        }
+        .input-pass:focus { border-color: #fff; box-shadow: var(--glow-white); }
+        .btn-login {
+            width: 100%;
+            background: #fff;
+            color: #000;
+            padding: 14px;
+            border-radius: 14px;
+            font-weight: 900;
+            font-size: 1rem;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-login:hover { box-shadow: var(--glow-strong); }
+
+        /* Admin panel */
+        .admin-panel {
+            padding: 14px;
+            display: none;
+        }
+        .admin-panel.show { display: block; }
+        .stat-cards { display: flex; gap: 8px; margin-bottom: 12px; }
+        .stat-card { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 12px; text-align: center; }
+        .stat-val { font-weight: 900; font-size: 1.4rem; }
+        .stat-lbl { font-size: 0.6rem; color: var(--gray); letter-spacing: 1px; }
+        .member-item {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 10px; margin: 6px 0;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; font-size: 0.75rem;
+        }
+        .member-item:hover { border-color: #fff; }
+        .admin-actions { display: flex; gap: 6px; margin-top: 8px; }
+        .admin-btn-sm {
+            flex: 1; padding: 8px; border-radius: 10px;
+            font-weight: 700; font-size: 0.65rem; cursor: pointer;
+            border: 1px solid var(--border); background: var(--bg-input); color: #fff; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Floating background candles -->
+    <div class="bg-candles" id="bgCandles"></div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-ring"></div>
+        <div class="loading-text">TITAN ANALYZING</div>
+        <div class="loading-count" id="loadingCount">5</div>
+    </div>
+
+    <!-- Package popup -->
+    <div class="package-overlay hidden" id="packageOverlay">
+        <div class="package-popup">
+            <h3>🔹 BUY TOKENS 🔹</h3>
+            <div class="pkg-option" onclick="buyPackage('20')"><span class="tokens">20 Tokens</span><span class="price">500₹</span></div>
+            <div class="pkg-option" onclick="buyPackage('30')"><span class="tokens">30 Tokens</span><span class="price">1000₹</span></div>
+            <div class="pkg-option" onclick="buyPackage('60')"><span class="tokens">60 Tokens</span><span class="price">1500₹</span></div>
+            <div class="pkg-option" onclick="buyPackage('unlimited')"><span class="tokens">UNLIMITED 30D</span><span class="price">5000₹</span></div>
+            <button onclick="closePackages()" style="width:100%;margin-top:10px;padding:10px;background:#333;color:#fff;border:none;border-radius:10px;cursor:pointer;">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Main app -->
+    <div class="app-container" id="appContainer">
+        <!-- Header -->
+        <div class="header" id="headerBar">
+            <div class="logo">
+                <div class="logo-icon"><span>⚡</span></div>
+                <div><span class="logo-text">TITAN</span><span class="logo-sub">SCREENSHOT ANALYZER</span></div>
+            </div>
+            <div class="header-right">
+                <span class="user-id" id="userIdDisplay">ID: ---</span>
+                <span class="token-badge">🪙 <span id="tokenCount">0</span><span class="plus-btn" onclick="showPackages()">+</span></span>
+                <button class="admin-btn" onclick="openAdmin()" title="Admin">👑</button>
+            </div>
+        </div>
+
+        <!-- Login -->
+        <div class="login-screen" id="loginScreen">
+            <div class="login-logo">⚡</div>
+            <div class="login-title">TITAN ANALYZER</div>
+            <div style="color:#666;font-size:0.7rem;letter-spacing:2px;">ENTER PASSWORD</div>
+            <input type="password" class="input-pass" id="passInput" placeholder="••••••••" autocomplete="off">
+            <div style="color:#ff4444;font-size:0.7rem;display:none;" id="loginError">Invalid password</div>
+            <button class="btn-login" id="loginBtn">ENTER</button>
+        </div>
+
+        <!-- Main content -->
+        <div class="main-content hidden" id="mainContent">
+            <!-- Chart upload -->
+            <div class="chart-upload-zone" id="chartZone" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📸</div>
+                <div class="upload-text">TAP TO UPLOAD CHART SCREENSHOT</div>
+                <div style="font-size:0.6rem;color:#555;">Supports: JPG, PNG</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" class="hidden">
+
+            <!-- Analyze button -->
+            <button class="btn btn-analyze" id="analyzeBtn" onclick="analyzeMarket()">⚡ ANALYZE MARKET</button>
+
+            <!-- Signal output -->
+            <div class="signal-output" id="signalOutput"></div>
+
+            <!-- Admin panel -->
+            <div class="admin-panel" id="adminPanel">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <strong style="letter-spacing:1px;">👑 ADMIN DASHBOARD</strong>
+                    <span onclick="closeAdmin()" style="cursor:pointer;font-size:1.2rem;">✕</span>
+                </div>
+                <div class="stat-cards">
+                    <div class="stat-card"><div class="stat-val" id="onlineCount">0</div><div class="stat-lbl">ONLINE</div></div>
+                    <div class="stat-card"><div class="stat-val" id="totalMembers">0</div><div class="stat-lbl">MEMBERS</div></div>
+                    <div class="stat-card"><div class="stat-val" id="totalRevenue">0₹</div><div class="stat-lbl">REVENUE</div></div>
+                </div>
+                <div style="font-weight:700;font-size:0.7rem;letter-spacing:1px;margin:8px 0;">📦 PENDING PURCHASES</div>
+                <div id="pendingPurchases"></div>
+                <div style="font-weight:700;font-size:0.7rem;letter-spacing:1px;margin:8px 0;">👥 MEMBERS</div>
+                <div id="memberList" style="max-height:300px;overflow-y:auto;"></div>
+                <div class="admin-actions" id="adminActions" style="display:none;">
+                    <button class="admin-btn-sm" onclick="adminAddTokens()">+ TOKENS</button>
+                    <button class="admin-btn-sm" style="border-color:#ff4444;color:#ff4444;" onclick="adminKickMember()">KICK</button>
+                </div>
+                <div id="selectedInfo" style="font-size:0.6rem;color:#666;text-align:center;margin-top:6px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ GLOBALS ============
+        let currentUser = JSON.parse(localStorage.getItem('titan_user')) || null;
+        let selectedMember = null;
+        let imageUploaded = false;
+        let tradeEndTimeout = null;
+
+        // ============ BACKGROUND CANDLES ============
+        function spawnBgCandles() {
+            const container = document.getElementById('bgCandles');
+            for (let i = 0; i < 30; i++) {
+                const candle = document.createElement('div');
+                candle.className = 'float-candle ' + (Math.random() < 0.5 ? 'green' : 'red');
+                candle.textContent = Math.random() < 0.5 ? '📈' : '📉';
+                candle.style.left = Math.random() * 90 + '%';
+                candle.style.top = Math.random() * 90 + '%';
+                candle.style.animationDelay = Math.random() * 10 + 's';
+                candle.style.animationDuration = (8 + Math.random() * 12) + 's';
+                candle.style.fontSize = (1 + Math.random() * 2) + 'rem';
+                container.appendChild(candle);
+            }
+        }
+        spawnBgCandles();
+
+        // ============ API CALLS ============
+        async function apiCall(url, method='GET', body=null) {
+            const opts = { method, headers: {'Content-Type': 'application/json'} };
+            if (body) opts.body = JSON.stringify(body);
+            const r = await fetch(url, opts);
+            return r.json();
+        }
+
+        // ============ LOGIN ============
+        async function handleLogin() {
+            const pass = document.getElementById('passInput').value.trim();
+            if (!pass) return;
+            const returningId = localStorage.getItem('titan_returning_id') || '';
+            const result = await apiCall('/api/login', 'POST', { password: pass, returning_id: returningId });
+            if (result.success) {
+                currentUser = { id: result.user_id, tokens: result.tokens, is_admin: result.is_admin };
+                localStorage.setItem('titan_user', JSON.stringify(currentUser));
+                localStorage.setItem('titan_returning_id', result.user_id);
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+                document.getElementById('headerBar').classList.remove('hidden');
+                document.getElementById('loginError').style.display = 'none';
+                updateUI();
+            } else if (result.kicked) {
+                const code = prompt('Account restricted. Enter rejoin code:');
+                if (code) {
+                    const r = await apiCall('/api/rejoin', 'POST', { user_id: returningId, code });
+                    if (r.success) {
+                        currentUser = { id: returningId, tokens: r.tokens };
+                        localStorage.setItem('titan_user', JSON.stringify(currentUser));
+                        document.getElementById('loginScreen').classList.add('hidden');
+                        document.getElementById('mainContent').classList.remove('hidden');
+                        document.getElementById('headerBar').classList.remove('hidden');
+                        updateUI();
+                    }
+                }
+            } else {
+                document.getElementById('loginError').style.display = 'block';
+            }
+            document.getElementById('passInput').value = '';
+        }
+
+        function updateUI() {
+            if (!currentUser) return;
+            document.getElementById('userIdDisplay').textContent = 'ID: ' + currentUser.id;
+            document.getElementById('tokenCount').textContent = currentUser.tokens;
+        }
+
+        // ============ UPLOAD ============
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                imageUploaded = true;
+                const zone = document.getElementById('chartZone');
+                zone.classList.add('has-image');
+                zone.innerHTML = `<img src="${ev.target.result}" class="upload-preview" alt="Chart">`;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // ============ ANALYZE ============
+        async function analyzeMarket() {
+            if (!currentUser) return alert('Login first!');
+            if (!imageUploaded) return alert('Upload chart screenshot first!');
+
+            document.getElementById('analyzeBtn').disabled = true;
+
+            // Show 5-sec loading
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.remove('hidden');
+            let count = 5;
+            document.getElementById('loadingCount').textContent = count;
+            const interval = setInterval(() => {
+                count--;
+                document.getElementById('loadingCount').textContent = count;
+                if (count <= 0) clearInterval(interval);
+            }, 1000);
+
+            const result = await apiCall('/api/analyze', 'POST', { user_id: currentUser.id });
+
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                document.getElementById('analyzeBtn').disabled = false;
+
+                if (result.success) {
+                    currentUser.tokens = result.tokens;
+                    updateUI();
+                    showSignal(result);
+                    // Clear screenshot after trade end
+                    const endParts = result.trade_end_time.split(':');
+                    const now = new Date();
+                    const endDate = new Date(now);
+                    endDate.setHours(parseInt(endParts[0]), parseInt(endParts[1]), 0, 0);
+                    const msUntilEnd = endDate - now + 180000; // 3 min
+                    if (tradeEndTimeout) clearTimeout(tradeEndTimeout);
+                    tradeEndTimeout = setTimeout(() => {
+                        imageUploaded = false;
+                        document.getElementById('chartZone').classList.remove('has-image');
+                        document.getElementById('chartZone').innerHTML = `
+                            <div class="upload-icon">📸</div>
+                            <div class="upload-text">TAP TO UPLOAD CHART SCREENSHOT</div>
+                            <div style="font-size:0.6rem;color:#555;">Supports: JPG, PNG</div>`;
+                        document.getElementById('signalOutput').classList.remove('show');
+                    }, Math.max(msUntilEnd, 1000));
+                } else {
+                    alert(result.message || 'Analysis failed');
+                }
+            }, 5000);
+        }
+
+        function showSignal(result) {
+            const output = document.getElementById('signalOutput');
+            output.classList.add('show');
+            const dirClass = result.signal_type === 'buy' ? 'buy' : result.signal_type === 'sell' ? 'sell' : 'unstable';
+            output.innerHTML = `
+                <div style="font-size:0.7rem;color:#666;letter-spacing:2px;">SIGNAL OUTPUT</div>
+                <div class="signal-direction ${dirClass}">${result.direction}</div>
+                <div class="signal-info">
+                    <div>PRICE<br><strong>$${result.price}</strong></div>
+                    <div>ENTRY<br><strong>${result.trade_time}</strong></div>
+                    <div>EXIT<br><strong>${result.trade_end_time}</strong></div>
+                </div>`;
+        }
+
+        // ============ PACKAGES ============
+        function showPackages() {
+            document.getElementById('packageOverlay').classList.remove('hidden');
+        }
+        function closePackages() {
+            document.getElementById('packageOverlay').classList.add('hidden');
+        }
+        async function buyPackage(pkg) {
+            if (!currentUser) return;
+            const result = await apiCall('/api/purchase', 'POST', { user_id: currentUser.id, package: pkg });
+            if (result.success) {
+                window.open(result.telegram_link, '_blank');
+                closePackages();
+            }
+        }
+
+        // ============ ADMIN ============
+        async function openAdmin() {
+            const pass = prompt('Admin password:');
+            if (!pass) return;
+            const verify = await apiCall('/api/admin/verify', 'POST', { password: pass });
+            if (!verify.success) return alert('Wrong password!');
+            document.getElementById('adminPanel').classList.add('show');
+            await loadAdminData();
+        }
+        function closeAdmin() {
+            document.getElementById('adminPanel').classList.remove('show');
+            selectedMember = null;
+            document.getElementById('adminActions').style.display = 'none';
+        }
+        async function loadAdminData() {
+            const users = await apiCall('/api/admin/users');
+            const revenue = await apiCall('/api/admin/revenue');
+            const pending = await apiCall('/api/admin/pending-purchases');
+
+            document.getElementById('onlineCount').textContent = users.filter(u => u.online).length;
+            document.getElementById('totalMembers').textContent = users.length;
+            document.getElementById('totalRevenue').textContent = (revenue.total_tokens_sold || 0) + '₹ est.';
+
+            // Pending purchases
+            let pendingHTML = '';
+            pending.forEach(p => {
+                pendingHTML += `<div class="member-item">
+                    <span>${p.user_id} - ${p.package} (${p.amount})</span>
+                    <button onclick="approvePurchase(${p.id})" style="background:#00ff88;color:#000;border:none;padding:4px 10px;border-radius:8px;cursor:pointer;font-weight:700;">✓</button>
+                </div>`;
+            });
+            document.getElementById('pendingPurchases').innerHTML = pendingHTML || '<div style="color:#555;font-size:0.7rem;">No pending</div>';
+
+            // Members
+            let memberHTML = '';
+            users.forEach(u => {
+                memberHTML += `<div class="member-item" onclick="selectMember('${u.id}')">
+                    <span>${u.id} ${u.is_admin?'👑':''} | 🪙${u.tokens} | 📊${u.analyses}</span>
+                    <span style="color:${u.online?'#00ff88':'#555'}">${u.online?'🟢':'⚫'}</span>
+                </div>`;
+            });
+            document.getElementById('memberList').innerHTML = memberHTML;
+        }
+        function selectMember(uid) {
+            selectedMember = uid;
+            document.getElementById('adminActions').style.display = 'flex';
+            document.getElementById('selectedInfo').textContent = 'Selected: ' + uid;
+        }
+        async function adminAddTokens() {
+            if (!selectedMember) return;
+            const amt = prompt('Token amount:');
+            if (!amt) return;
+            await apiCall('/api/admin/add-tokens', 'POST', { user_id: selectedMember, amount: parseInt(amt) });
+            loadAdminData();
+        }
+        async function adminKickMember() {
+            if (!selectedMember) return;
+            if (!confirm('Kick ' + selectedMember + '?')) return;
+            const r = await apiCall('/api/admin/kick', 'POST', { user_id: selectedMember });
+            if (r.success) alert('Kicked! Rejoin code: ' + r.rejoin_code);
+            loadAdminData();
+        }
+        async function approvePurchase(id) {
+            await apiCall('/api/admin/approve-purchase', 'POST', { purchase_id: id });
+            loadAdminData();
+        }
+
+        // ============ EVENTS ============
+        document.getElementById('loginBtn').addEventListener('click', handleLogin);
+        document.getElementById('passInput').addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); });
+
+        // ============ INIT ============
+        if (currentUser) {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            document.getElementById('headerBar').classList.remove('hidden');
+            updateUI();
+        }
+    </script>
+</body>
+</html>
